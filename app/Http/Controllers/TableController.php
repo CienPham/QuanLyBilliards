@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Table;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Models\Reservation;
 
 class TableController extends Controller
 {
@@ -14,8 +16,10 @@ class TableController extends Controller
      */
     public function index()
     {
-        $tables = Table::all(); // Lấy danh sách bàn từ database
-        return view('tables.index', compact('tables')); // Truyền biến $tables vào view
+
+        $tables = Table::all(); // Fetch all tables from the database
+        return view('tables.index', compact('tables')); // Pass the tables to the view
+
     }
     
 
@@ -42,7 +46,7 @@ class TableController extends Controller
         try {
             $request->validate([
                 'table_number' => 'required|unique:tables',
-                'status' => 'required|in:available,occupied,unavailable',
+                 'status' => 'required|in:available,occupied,unavailable',              
                 'area' => 'required',
                 'table_type' => 'required',
                 'price' => 'required|numeric|min:0',
@@ -54,7 +58,9 @@ class TableController extends Controller
             return response()->json($table, 201);
         } catch (\Exception $e) {
             Log::error("Lỗi khi tạo bàn: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return response()->json(['message' => 'Có lỗi xảy ra khi thêm bàn!'], 500);
+
+            return response()->json(['message' => 'Bàn đã tồn tại!'], 500);
+
         }
     }
     /**
@@ -79,8 +85,7 @@ class TableController extends Controller
     {
         $request->validate([
             'table_number' => 'required|unique:tables,table_number,'.$table->id,
-            'status' => 'required|in:available,occupied,unavailable',
-            'area' => 'required',
+            'status' => 'required|in:available,occupied,unavailable','area' => 'required',
             'table_type' => 'required',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable',
@@ -99,6 +104,12 @@ class TableController extends Controller
      */
     public function destroy(Table $table)
     {
+        // Check if the table is referenced in any reservations
+        $reservations = Reservation::where('table_id', $table->id)->count();
+        if ($reservations > 0) {
+            return response()->json(['message' => 'Không thể xóa bàn này vì nó đang được đặt!'], 400);
+        }
+
         $table->delete();
 
         return response()->json(null, 204);

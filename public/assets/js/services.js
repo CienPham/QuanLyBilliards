@@ -102,6 +102,36 @@ $(document).ready(function() {
         });
     });
 
+    $('#deleteServiceBtn').click(function () {
+        if (!selectedServiceId) return;
+    
+        Swal.fire({
+            title: 'Bạn chắc chắn?',
+            text: 'Hành động này sẽ xóa dịch vụ vĩnh viễn!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Xóa',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: servicesDeleteRoute.replace(':id', selectedServiceId),
+                    type: 'POST',
+                    data: { _method: 'DELETE' },
+                    success: function (response) {
+                        Swal.fire('Đã xóa!', 'Dịch vụ đã được xóa.', 'success').then(() => {
+                            resetForm();
+                            loadServices();
+                        });
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Lỗi!', 'Không thể xóa dịch vụ.', 'error');
+                        console.error(xhr.responseText);
+                    }
+                });
+            }
+        });
+    });
     // Xử lý khi click nút Cập nhật
     $('#editServiceBtn').click(function() {
         if (!selectedServiceId) return;
@@ -162,10 +192,9 @@ $(document).ready(function() {
         resetForm();
     });
 
-    // Hàm tải danh sách dịch vụ
     function loadServices() {
         $.ajax({
-            url: servicesDataRoute,  // Use the route variable defined in the view
+            url: servicesDataRoute,
             type: "GET",
             dataType: "json",
             success: function(data) {
@@ -173,7 +202,7 @@ $(document).ready(function() {
                     $('#serviceGrid').html('<div class="no-data">Không có dịch vụ nào</div>');
                     return;
                 }
-
+    
                 let html = '';
                 data.forEach(service => {
                     html += `
@@ -205,7 +234,42 @@ $(document).ready(function() {
             }
         });
     }
-
+    
+    // 👉 Hàm dành riêng khi gọi trong modal giỏ hàng
+    function loadServicesForReservation() {
+        $.ajax({
+            url: servicesDataRoute,
+            type: "GET",
+            dataType: "json",
+            success: function(data) {
+                let html = '';
+                data.forEach(service => {
+                    html += `
+                        <div class="card product-card h-100"
+                             data-id="${service.id}"
+                             data-name="${service.name}"
+                             data-price="${parseInt(service.price)}">
+                            <div class="card-body">
+                                <h5 class="card-title">${service.name}</h5>
+                                <p class="card-text">${formatPrice(service.price)} đ</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                $('#serviceGrid').html(html);
+            },
+            error: function(xhr) {
+                console.error('Lỗi khi load service modal:', xhr.responseText);
+            }
+        });
+    }
+    
+    // 👇 Nếu đang ở trang dịch vụ, gọi loadServices
+    if ($('#serviceGrid').length && $('body').data('page') === 'services-index') {
+        loadServices();
+    }
+    
+    
     // Hàm hỗ trợ format giá
     function formatPrice(price) {
         return new Intl.NumberFormat('vi-VN').format(price);
@@ -238,3 +302,4 @@ $(document).ready(function() {
     // Tải danh sách dịch vụ khi trang được load
     loadServices();
 });
+
